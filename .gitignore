@@ -1,0 +1,6 @@
+tceetree
+*.o
+tags
+cscope.*
+tceetree.out
+tceetree.out.png
