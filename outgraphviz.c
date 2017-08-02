@@ -48,7 +48,7 @@ char *hlstyles[HSTYLESNO] = {
 };
 
 // start graph
-int outopen_gra(ttree_t *ptree, treeparam_t *pparam)
+int outopen_gra(symtree_t *ptree, treeparam_t *pparam)
 {
     int iErr = 0, iEbase;
     char *sbasename = NULL;
@@ -71,7 +71,7 @@ int outopen_gra(ttree_t *ptree, treeparam_t *pparam)
 }
 
 // end graph
-int outclose_gra(ttree_t *ptree, treeparam_t *pparam)
+int outclose_gra(symtree_t *ptree, treeparam_t *pparam)
 {
     int iErr = 0;
 
@@ -88,7 +88,7 @@ int outclose_gra(ttree_t *ptree, treeparam_t *pparam)
 }
 
 // print one node
-int outnode_gra(ttreenode_t *pnode, treeparam_t *pparam)
+int outnode_gra(symtree_node_t *pnode, treeparam_t *pparam)
 {
     int iErr = 0;
     char *sclustername = NULL;
@@ -104,9 +104,9 @@ int outnode_gra(ttreenode_t *pnode, treeparam_t *pparam)
             if (iErr == 0) {
                 // if no file information is present, function will be grouped into the library cluster
                 if (sclusterlabel == NULL)
-                    iErr = slibcpy(&sclusterlabel, TT_LIBRARY, -1);
+                    iErr = slibcpy(&sclusterlabel, TT_LIBRARY, 0, -1);
                 if (iErr == 0) {
-                    iErr = slibcpy(&sclustername, sclusterlabel, -1);
+                    iErr = slibcpy(&sclustername, sclusterlabel, 0, -1);
                     if (iErr == 0) {
                         // replace . with _ for the cluster name
                         n = strlen(sclustername);
@@ -146,41 +146,52 @@ int outnode_gra(ttreenode_t *pnode, treeparam_t *pparam)
 }
 
 // print one branch
-int outbranch_gra(ttreebranch_t *pbranch, treeparam_t *pparam)
+int outbranch_gra(symtree_node_t *caller, symtree_node_t *callee, treeparam_t *pparam, int revert_direction)
 {
     int iErr = 0;
     char *sbasename = NULL;
+    symtree_node_t *parent, *child;
 
-    if (grafile && pbranch && pbranch->parent && pbranch->child && pbranch->parent->funname && pbranch->child->funname) {
-        // print the branch: caller -> callee;
-        fprintf(grafile, "\t%s->%s", pbranch->parent->funname, pbranch->child->funname);
-        if (pparam->printfile && pbranch->filename) {
-            // if enabled, print the filename where the call has been found
-            iErr = slibbasename(&sbasename, pbranch->filename, 1);
-            if (iErr == 0) {
-                fprintf(grafile, " [label=\"%s\"", sbasename);
-                if (pbranch->icolor > 0) {
-                    // if path is to be highlighted, add color or style attributes
-                    if (pparam->hlstyle >= HSTYLES1)
-                        fprintf(grafile, ",style=\"%s\"", hlstyles[pparam->hlstyle]);
-                    else
-                        fprintf(grafile, ",color=\"%s\",fontcolor=\"%s\"", hlstyles[pparam->hlstyle], hlstyles[pparam->hlstyle]);
-                }
-                fprintf(grafile, "]");
-                free(sbasename);
-            }
-        } else {
-            // filename is not printed near to the arrow
-            if (pbranch->icolor > 0) {
+    if (!grafile)
+        return 0;
+
+    // print the branch: caller -> callee;
+    if (revert_direction) {
+        parent = callee;
+        child = caller;
+    } else {
+        parent = caller;
+        child = callee;
+    }
+
+    fprintf(grafile, "\t%s->%s", parent->funname, child->funname);
+
+    if (pparam->printfile && parent->filename) {
+        // if enabled, print the filename where the call has been found
+        iErr = slibbasename(&sbasename, parent->filename, 1);
+        if (iErr == 0) {
+            fprintf(grafile, " [label=\"%s\"", sbasename);
+            if (parent->icolor > 0) {
                 // if path is to be highlighted, add color or style attributes
                 if (pparam->hlstyle >= HSTYLES1)
-                    fprintf(grafile, " [style=\"%s\"]", hlstyles[pparam->hlstyle]);
+                    fprintf(grafile, ",style=\"%s\"", hlstyles[pparam->hlstyle]);
                 else
-                    fprintf(grafile, " [color=\"%s\"]", hlstyles[pparam->hlstyle]);
+                    fprintf(grafile, ",color=\"%s\",fontcolor=\"%s\"", hlstyles[pparam->hlstyle], hlstyles[pparam->hlstyle]);
             }
+            fprintf(grafile, "]");
+            free(sbasename);
         }
-        fprintf(grafile, ";\n");
+    } else {
+        // filename is not printed near to the arrow
+        if (parent->icolor > 0) {
+            // if path is to be highlighted, add color or style attributes
+            if (pparam->hlstyle >= HSTYLES1)
+                fprintf(grafile, " [style=\"%s\"]", hlstyles[pparam->hlstyle]);
+            else
+                fprintf(grafile, " [color=\"%s\"]", hlstyles[pparam->hlstyle]);
+        }
     }
+    fprintf(grafile, ";\n");
 
     return iErr;
 }

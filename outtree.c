@@ -34,7 +34,7 @@
 #define ROOTMARK 0x100 // special value used to find the path to be highlighted (-p option)
 
 // start output
-int outopen(ttree_t *ptree, treeparam_t *pparam)
+int outopen(symtree_t *ptree, treeparam_t *pparam)
 {
     int iErr = 0;
 
@@ -52,7 +52,7 @@ int outopen(ttree_t *ptree, treeparam_t *pparam)
 }
 
 // end output
-int outclose(ttree_t *ptree, treeparam_t *pparam)
+int outclose(symtree_t *ptree, treeparam_t *pparam)
 {
     int iErr = 0;
 
@@ -70,7 +70,7 @@ int outclose(ttree_t *ptree, treeparam_t *pparam)
 }
 
 // output one node
-int outnode(ttreenode_t *pnode, treeparam_t *pparam, int colr)
+int outnode(symtree_node_t *pnode, treeparam_t *pparam, int colr)
 {
     int iErr = 0;
 
@@ -104,7 +104,7 @@ int outnode(ttreenode_t *pnode, treeparam_t *pparam, int colr)
 }
 
 // output one branch
-int outbranch(ttreebranch_t *pbranch, treeparam_t *pparam, int colr)
+int outbranch(symtree_node_t *pnode, symtree_node_t *pbranch, treeparam_t *pparam, int colr, int revert_direction)
 {
     int iErr = 0;
     int i;
@@ -115,11 +115,11 @@ int outbranch(ttreebranch_t *pbranch, treeparam_t *pparam, int colr)
     // check if branch should be excluded
     for (i = 0; i < pparam->excludfno; i++) {
         // check if library excluded
-        if (strcmp(pparam->excludf[i], TT_LIBRARY) == 0 && pbranch->child->filename == NULL)
+        if (strcmp(pparam->excludf[i], TT_LIBRARY) == 0 && pbranch->filename == NULL)
             return iErr;
 
         // check if caller or callee function name matches one of those in the exclusion list
-        if (strcmp(pbranch->parent->funname, pparam->excludf[i]) == 0 || strcmp(pbranch->child->funname, pparam->excludf[i]) == 0)
+        if (strcmp(pnode->funname, pparam->excludf[i]) == 0 || strcmp(pbranch->funname, pparam->excludf[i]) == 0)
             return iErr;
     }
 
@@ -135,7 +135,7 @@ int outbranch(ttreebranch_t *pbranch, treeparam_t *pparam, int colr)
         // output branch
         switch (pparam->outtype) {
         case TREEOUT_GRAPHVIZ:
-            iErr = outbranch_gra(pbranch, pparam);
+            iErr = outbranch_gra(pnode, pbranch, pparam, revert_direction);
             break;
 
         default:
@@ -150,11 +150,12 @@ int outbranch(ttreebranch_t *pbranch, treeparam_t *pparam, int colr)
 }
 
 // output of a subtree (forward and backward) starting from pnode
-int outsubtree(ttree_t *ptree, treeparam_t *pparam, ttreenode_t *pnode, int fdepth, int bdepth, int colr)
+int outsubtree(treeparam_t *pparam, symtree_node_t *pnode, int fdepth, int bdepth, int colr)
 {
-    int iErr = 0;
-    ttreebranch_t *pbranch;
+    symtree_node_t *pbranch;
+    symtree_list_t *list;
     int i, prevcol;
+    int iErr = 0;
 
     if (pnode == NULL)
         return iErr;
@@ -194,58 +195,48 @@ int outsubtree(ttree_t *ptree, treeparam_t *pparam, ttreenode_t *pnode, int fdep
         if (fdepth > 0)
             fdepth--;
 
-        pbranch = NULL;
-        do {
-            // find all branches starting from this node
-            pbranch = ttreefindbranch(ptree, pnode, NULL, pnode->filename, pbranch);
+        list = pnode->children;
+        while (list) {
+            pbranch = list->symbol;
+            if (!pbranch->outdone) {
+                // if branch not done
+                prevcol = pnode->icolor;
+                // output branch
+                iErr = outbranch(pnode, pbranch, pparam, colr, 0);
+                if (iErr != 0)
+                    break;
 
-            if (pbranch) {
-                if (!pbranch->outdone) {
-                    // if branch not done
-                    prevcol = pbranch->icolor;
-                    // output branch
-                    iErr = outbranch(pbranch, pparam, colr);
-                    if (iErr != 0)
-                        break;
-
-                    // do subtree
-                    if (pbranch->child != pnode) // avoid involving recursion in depth decrease
-                        if (colr <= 0 || colr == ROOTMARK || prevcol == ROOTMARK)
-                            iErr = outsubtree(ptree, pparam, pbranch->child, fdepth, 0, colr);
-                }
-
-                pbranch = pbranch->next;
+                // do subtree
+                if (pbranch != pnode) // avoid involving recursion in depth decrease
+                    if (colr <= 0 || colr == ROOTMARK || prevcol == ROOTMARK)
+                        iErr = outsubtree(pparam, pbranch, fdepth, 0, colr);
             }
-        } while (pbranch != NULL);
+            list = list->next;
+        }
     }
 
     if (iErr == 0 && bdepth != 0) {
         if (bdepth > 0)
             bdepth--;
 
-        pbranch = NULL;
-        do {
-            // find all branches with this node as destination
-            pbranch = ttreefindbranch(ptree, NULL, pnode, NULL, pbranch);
+        list = pnode->parents;
+        while (list) {
+            pbranch = list->symbol;
+            if (!pbranch->outdone) {
+                // if branch not done
+                prevcol = pnode->icolor;
+                // output branch
+                iErr = outbranch(pnode, pbranch, pparam, colr, 1);
+                if (iErr != 0)
+                    break;
 
-            if (pbranch) {
-                if (!pbranch->outdone) {
-                    // if branch not done
-                    prevcol = pbranch->icolor;
-                    // output branch
-                    iErr = outbranch(pbranch, pparam, colr);
-                    if (iErr != 0)
-                        break;
-
-                    // do subtree
-                    if (pbranch->parent != pnode) // avoid involving recursion in depth decrease
-                        if (colr <= 0 || colr == ROOTMARK || prevcol == ROOTMARK)
-                            iErr = outsubtree(ptree, pparam, pbranch->parent, 0, bdepth, colr);
-                }
-
-                pbranch = pbranch->next;
+                // do subtree
+                if (pbranch != pnode) // avoid involving recursion in depth decrease
+                    if (colr <= 0 || colr == ROOTMARK || prevcol == ROOTMARK)
+                        iErr = outsubtree(pparam, pbranch, 0, bdepth, colr);
             }
-        } while (pbranch != NULL);
+            list = list->next;
+        }
     }
 
     pnode->subtreeoutdone = 1;
@@ -254,36 +245,27 @@ int outsubtree(ttree_t *ptree, treeparam_t *pparam, ttreenode_t *pnode, int fdep
 }
 
 // tree output init
-void outtreeinit(ttree_t *ptree, int color, int resetroot)
+void outtreeinit(symtree_t *ptree, int color, int resetroot)
 {
-    ttreenode_t *pnode;
-    ttreebranch_t *pbranch;
+    symtree_node_t *pnode;
 
-    pnode = ptree->firstnode;
-    while (pnode != NULL) {
+    pnode = symtree_first(ptree);
+    while (pnode) {
         pnode->outdone = 0;
         pnode->subtreeoutdone = 0;
         if (resetroot)
             pnode->isroot = 0;
         if (color >= 0)
             pnode->icolor = color;
-        pnode = pnode->next;
-    }
-
-    pbranch = ptree->firstbranch;
-    while (pbranch != NULL) {
-        pbranch->outdone = 0;
-        if (color >= 0)
-            pbranch->icolor = color;
-        pbranch = pbranch->next;
+        pnode = symtree_next(pnode);
     }
 }
 
 // make tree output
-int outtree(ttree_t *ptree, treeparam_t *pparam)
+int outtree(symtree_t *ptree, treeparam_t *pparam)
 {
     int iErr = 0, iErrC;
-    ttreenode_t *pnode;
+    symtree_node_t *pnode;
     int i = 0;
 
     if (pparam->verbose)
@@ -297,32 +279,32 @@ int outtree(ttree_t *ptree, treeparam_t *pparam)
 
         // find all roots and set corresponding isroot flag
         for (i = 0; i < pparam->rootno; i++) {
-            pnode = ptree->firstnode;
+            pnode = symtree_first(ptree);
             while (pnode != NULL) {
                 if (strcmp(pnode->funname, pparam->root[i]) == 0) {
                     pnode->isroot = 1;
                     // break; break missing because the same function can have multiple definitions in different files
                 }
 
-                pnode = pnode->next;
+                pnode = symtree_next(pnode);
             }
         }
 
         // mark all nodes found scanning the tree starting from the specified root functions
-        pnode = ptree->firstnode;
+        pnode = symtree_first(ptree);
         while (iErr == 0 && pnode != NULL) {
             if (pnode->isroot) {
                 // init, don't set color, don't reset isroot flags
                 outtreeinit(ptree, -1, 0);
-                iErr = outsubtree(ptree, pparam, pnode, pparam->fdepth, pparam->bdepth, ROOTMARK);
+                iErr = outsubtree(pparam, pnode, pparam->fdepth, pparam->bdepth, ROOTMARK);
             }
 
-            pnode = pnode->next;
+            pnode = symtree_next(pnode);
         }
 
         if (pparam->callp) {
             // if an highlight path has been specified
-            pnode = ptree->firstnode;
+            pnode = symtree_first(ptree);
             while (iErr == 0 && pnode != NULL) {
                 if (strcmp(pnode->funname, pparam->callp) == 0) {
                     // found the last function of path
@@ -331,11 +313,11 @@ int outtree(ttree_t *ptree, treeparam_t *pparam)
                     // bdepth and fdepth are inverted on purpose, because we are scanning toward roots
                     // in the opposite direction
                     // last parameter = 1 because we are coloring the path
-                    iErr = outsubtree(ptree, pparam, pnode, pparam->bdepth, pparam->fdepth, 1);
+                    iErr = outsubtree(pparam, pnode, pparam->bdepth, pparam->fdepth, 1);
                     // break; break missing because the same function can have multiple defintions in different files
                 }
 
-                pnode = pnode->next;
+                pnode = symtree_next(pnode);
             }
         }
 
@@ -343,13 +325,13 @@ int outtree(ttree_t *ptree, treeparam_t *pparam)
         outtreeinit(ptree, -1, 0);
 
         // this is the actual output production
-        pnode = ptree->firstnode;
+        pnode = symtree_first(ptree);
         while (iErr == 0 && pnode != NULL) {
             // find all roots and start scanning from those nodes
             if (pnode->isroot)
-                iErr = outsubtree(ptree, pparam, pnode, pparam->fdepth, pparam->bdepth, -1);
+                iErr = outsubtree(pparam, pnode, pparam->fdepth, pparam->bdepth, -1);
 
-            pnode = pnode->next;
+            pnode = symtree_next(pnode);
         }
 
         // terminate the tree output

@@ -32,20 +32,25 @@
 #endif // _ALL_IN_ONE
 
 // copy string with automatic memory allocation
-int slibcpy(char **sout, char const *sin, int errval)
+int slibcpy(char **sout, char const *sin, int sin_len, int errval)
 {
+    int len = sin_len;
     free(*sout); // Pay attention to load *sout with NULL if it has never been allocated before
 
     if (sin == NULL) {
         *sout = NULL; // NULL produces NULL
     } else {
-        *sout = (char *)calloc(strlen(sin) + 1, sizeof(char));
+        if (len == 0)
+            len = strlen(sin);
+
+        *sout = (char *)malloc((len + 1) * sizeof(char));
         if (*sout == NULL) {
             printf("\nMemory allocation error\n");
             return errval; // the error value is specified as input parameter
         }
 
-        strcpy(*sout, sin);
+        strncpy(*sout, sin, len);
+        (*sout)[len] = 0;
     }
 
     return 0;
@@ -55,18 +60,22 @@ int slibcpy(char **sout, char const *sin, int errval)
 int slibbasename(char **sbase, char *spath, int withext)
 {
     int i, iErr = 0;
+    int spath_len;
+    int sbase_len;
 
     if (spath == NULL) {
         *sbase = NULL; // NULL produces NULL
     } else {
-        for (i = strlen(spath) - 1; i >= 0; i--)
+        spath_len = strlen(spath);
+        for (i = spath_len - 1; i >= 0; i--)
             if (spath[i] == '\\' || spath[i] == '/')
                 break;
 
-        iErr = slibcpy(sbase, spath + i + 1, -1);
+        iErr = slibcpy(sbase, spath + i + 1, spath_len - i - 1, -1);
 
         if (iErr == 0 && !withext) {
-            for (i = 0; i < (int)strlen(*sbase); i++)
+            sbase_len = strlen(*sbase);
+            for (i = 0; i < sbase_len; i++)
                 if ((*sbase)[i] == '.') {
                     (*sbase)[i] = 0;
                     break;

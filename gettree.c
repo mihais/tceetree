@@ -39,12 +39,14 @@ void replendline(char *sline)
     int i;
 
     for (i = 2; i < MAXLINEF && sline[i] != 0; i++) {
-        if (sline[i] == '\n')
+        if (sline[i] == '\n') {
             sline[i] = 0;
+            break;
+        }
     }
 }
 
-int gettree(ttree_t *ptree, treeparam_t *pparam)
+int gettree(symtree_t *ptree, treeparam_t *pparam)
 {
     int iErr = 0;
     FILE *filein, *filedbout;
@@ -52,7 +54,7 @@ int gettree(ttree_t *ptree, treeparam_t *pparam)
     char *sSub;
     char *sfilename = NULL;
     char *scaller = NULL;
-    ttreenode_t *ncaller, *ncallee;
+    symtree_node_t *ncaller, *ncallee;
     long lineidx;
 
     /* Get all Nodes */
@@ -83,28 +85,28 @@ int gettree(ttree_t *ptree, treeparam_t *pparam)
                     printf("\n");
                 while (iErr == 0 && fgets(sLine, MAXLINEF, filein) != NULL) {
                     lineidx++;
-                    if (pparam->verbose) {
+                    if (pparam->verbose && !(lineidx % 1000)) {
                         printf("Getting tree nodes... line %ld\r", lineidx);
                     }
-                    switch (sLine[0]) {
-                    case '\t':
+                    if (sLine[0] == '\t') {
                         switch (sLine[1]) {
                         case '@':
                             // filename where function is defined
                             if (filedbout != NULL)
                                 fputs(sLine, filedbout);
-                            replendline(sLine);
+
                             sSub = &sLine[2];
-                            iErr = slibcpy(&sfilename, sSub, -1);
+                            iErr = slibcpy(&sfilename, sSub, strlen(sSub) -1, -1);
                             break;
 
                         case '$':
                             // add one node for each function definition
                             if (filedbout != NULL)
                                 fputs(sLine, filedbout);
+
                             replendline(sLine);
                             sSub = &sLine[2];
-                            iErr = ttreeaddnode(ptree, sSub, sfilename);
+                            symtree_add(ptree, sSub, sfilename);
                             break;
 
                         case '`':
@@ -115,10 +117,6 @@ int gettree(ttree_t *ptree, treeparam_t *pparam)
                         default:
                             break;
                         }
-                        break;
-
-                    default:
-                        break;
                     }
                 }
 
@@ -151,56 +149,50 @@ int gettree(ttree_t *ptree, treeparam_t *pparam)
                 printf("\n");
             lineidx = 0;
             while (iErr == 0 && fgets(sLine, MAXLINEF, filein) != NULL) {
-                if (pparam->verbose) {
-                    lineidx++;
+                lineidx++;
+                if (pparam->verbose && !(lineidx % 1000)) {
                     printf("Getting tree branches... line %ld\r", lineidx);
                 }
-                switch (sLine[0]) {
-                case '\t':
+                if (sLine[0] == '\t') {
                     switch (sLine[1]) {
                     case '@':
                         // get again filename where caller is defined
-                        replendline(sLine);
                         sSub = &sLine[2];
-                        iErr = slibcpy(&sfilename, sSub, -1);
+                        iErr = slibcpy(&sfilename, sSub, strlen(sSub) - 1, -1);
                         break;
 
                     case '$':
                         // get the name of caller function
-                        replendline(sLine);
                         sSub = &sLine[2];
-                        iErr = slibcpy(&scaller, sSub, -1);
+                        iErr = slibcpy(&scaller, sSub, strlen(sSub) - 1, -1);
                         break;
 
                     case '`':
-                        replendline(sLine);
                         sSub = &sLine[2];
                         if (sfilename) {
                             // find the caller function node
-                            ncaller = ttreefindnode(ptree, scaller, sfilename);
+                            ncaller = symtree_find(ptree, scaller, sfilename);
                             if (ncaller != NULL) {
                                 // find the callee function node
-                                ncallee = ttreefindnode(ptree, sSub, NULL);
+                                replendline(sLine);
+                                ncallee = symtree_find(ptree, sSub, NULL);
                                 if (ncallee == NULL) {
                                     // could not find the callee function: it must be a library function:
                                     // create its node now
-                                    iErr = ttreeaddnode(ptree, sSub, NULL);
-                                    if (iErr == 0)
-                                        ncallee = ptree->lastnode;
+                                    ncallee = symtree_add(ptree, sSub, NULL);
                                 }
                                 // add branch
-                                if (iErr == 0)
-                                    iErr = ttreeaddbranch(ptree, ncaller, ncallee, sfilename);
+                                if (ncallee)
+                                    symtree_node_add_branch(ncaller, ncallee);
                             }
                             /* Comment here: better to go on; it may happen to come
-									 * here in cases like: #define FUN() funct(a, b)
-									else
-									{
-										// this should never happen
-										printf("\nCaller function node not found\n");
-										iErr = -1;
-									}
-									*/
+                             * here in cases like: #define FUN() funct(a, b)
+                              else {
+                                  // this should never happen
+                                  printf("\nCaller function node not found\n");
+                                  iErr = -1;
+                              }
+                             */
                         } else {
                             printf("\nFilename where the call is has not been found\n");
                             iErr = -1;
@@ -210,10 +202,6 @@ int gettree(ttree_t *ptree, treeparam_t *pparam)
                     default:
                         break;
                     }
-                    break;
-
-                default:
-                    break;
                 }
             }
 

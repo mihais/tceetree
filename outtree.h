@@ -26,10 +26,10 @@
 #define _OUTTREE_H
 
 #ifndef _ALL_IN_ONE
-#include "ttree.h"
+#include "symtree.h"
 #include "ttreeparam.h"
 #endif // _ALL_IN_ONE
 
-int outtree(ttree_t *ptree, treeparam_t *pparam);
+int outtree(symtree_t *ptree, treeparam_t *pparam);
 
 #endif // #ifndef _OUTTREE_H

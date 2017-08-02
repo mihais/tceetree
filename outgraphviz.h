@@ -26,13 +26,13 @@
 #define _OUTGRAPHVIZ_H
 
 #ifndef _ALL_IN_ONE
-#include "ttree.h"
+#include "symtree.h"
 #include "ttreeparam.h"
 #endif // _ALL_IN_ONE
 
-int outopen_gra(ttree_t *ptree, treeparam_t *pparam);
-int outclose_gra(ttree_t *ptree, treeparam_t *pparam);
-int outnode_gra(ttreenode_t *pnode, treeparam_t *pparam);
-int outbranch_gra(ttreebranch_t *pbranch, treeparam_t *pparam);
+int outopen_gra(symtree_t *ptree, treeparam_t *pparam);
+int outclose_gra(symtree_t *ptree, treeparam_t *pparam);
+int outnode_gra(symtree_node_t *pnode, treeparam_t *pparam);
+int outbranch_gra(symtree_node_t *caller, symtree_node_t *callee, treeparam_t *pparam, int reverse_direction);
 
 #endif // #ifndef _OUTGRAPHVIZ_H

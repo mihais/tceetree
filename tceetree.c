@@ -31,7 +31,7 @@
 #include "gettree.h"
 #include "outtree.h"
 #include "slib.h"
-#include "ttree.h"
+#include "symtree.h"
 #include "ttreeparam.h"
 #endif // _ALL_IN_ONE
 
@@ -41,7 +41,7 @@ const char sdefaultoutfile[] = "tceetree.out"; // default output file
 // setting of string parameters
 int paramstr(char **sout, char const *sin)
 {
-    return slibcpy(sout, sin, -3);
+    return slibcpy(sout, sin, 0, -3);
 }
 
 // setting of string array parameters
@@ -52,7 +52,7 @@ int paramstrarr(char **sout, int *outidx, int maxnum, char const *sin, char cons
         return -3;
     }
 
-    return slibcpy(&sout[(*outidx)++], sin, -3);
+    return slibcpy(&sout[(*outidx)++], sin, 0, -3);
 }
 
 // setting of default parameters
@@ -273,7 +273,7 @@ int usage_opt(char const *sopt, treeparam_t *ptreeparam)
 int main(int argc, char *argv[])
 {
     treeparam_t treeparam;
-    ttree_t ttree;
+    symtree_t stree;
     int i;
     int iErr = 0;
 
@@ -296,13 +296,13 @@ int main(int argc, char *argv[])
             treeparam.rootno = 1;
         }
 
-        ttreeinit(&ttree); // initialize tree
+        symtree_init(&stree); // initialize tree
 
-        iErr = gettree(&ttree, &treeparam); // read cscope file and get the whole tree
+        iErr = gettree(&stree, &treeparam); // read cscope file and get the whole tree
         if (iErr == 0)
-            iErr = outtree(&ttree, &treeparam); // make subtree output according to options
+            iErr = outtree(&stree, &treeparam); // make subtree output according to options
 
-        ttreefree(&ttree); // free tree memory
+        symtree_free(&stree); // free tree memory
     }
 
     if (iErr == -2)

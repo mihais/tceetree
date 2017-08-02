@@ -7,7 +7,7 @@ SOURCES=gettree.c \
 		rbtree.c \
 		slib.c \
 		tceetree.c \
-		ttree.c
+		symtree.c
 
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=tceetree
