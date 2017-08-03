@@ -1,4 +1,8 @@
-Travis CI: [![Build Status](https://travis-ci.org/mihais/tceetree.svg?branch=master)](https://travis-ci.org/mihais/tceetree)
+[![Build Status](https://travis-ci.org/mihais/tceetree.svg?branch=master)](https://travis-ci.org/mihais/tceetree)
+<a href="https://scan.coverity.com/projects/mihais-tceetree">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/13370/badge.svg"/>
+</a>
 
 This is a fork of the original project hosted on SourceForge:
 * https://sourceforge.net/projects/tceetree/
