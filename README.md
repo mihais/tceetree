@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/mihais/tceetree.svg?branch=master)](https://travis-ci.org/mihais/tceetree)
+Travis CI: [![Build Status](https://travis-ci.org/mihais/tceetree.svg?branch=master)](https://travis-ci.org/mihais/tceetree)
 
 This is a fork of the original project hosted on SourceForge:
 * https://sourceforge.net/projects/tceetree/
