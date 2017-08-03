@@ -1,16 +1,15 @@
-CC=gcc
-CFLAGS=-c -Wall -O0 -ggdb3
-LDFLAGS=
-SOURCES=gettree.c \
-		outgraphviz.c \
-		outtree.c \
-		rbtree.c \
-		slib.c \
-		tceetree.c \
-		symtree.c
+CC ?= gcc
+CFLAGS := -c -Wall -O2 $(CFLAGS)
+SOURCES = 	gettree.c \
+			outgraphviz.c \
+			outtree.c \
+			rbtree.c \
+			slib.c \
+			tceetree.c \
+			symtree.c
 
-OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=tceetree
+OBJECTS = $(SOURCES:.c=.o)
+EXECUTABLE = tceetree
 
 all: $(SOURCES) $(EXECUTABLE)
 
